@@ -8,6 +8,7 @@ create role dba with NOLOGIN NOINHERIT ;
 -- grants for dba
 grant select on pg_catalog.pg_authid to dba ;
 grant update (rolvaliduntil) on pg_catalog.pg_authid to dba ;
+grant pg_read_all_stats to dba ;
 
 
 -- password history table
@@ -32,7 +33,6 @@ ALTER TABLE IF EXISTS dba.pwdhistory
 -- ######################################
 -- ######################################
 
-
 CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text)
     RETURNS integer
     SECURITY DEFINER
@@ -40,14 +40,24 @@ CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text)
     COST 100
     VOLATILE PARALLEL UNSAFE
 AS $BODY$
+declare
+   _invokingfunction text := '';
+   _matches text;
 begin
-   EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
-   return 0;
-exception
-   -- trap existing error and re-raise with added detail
-   when unique_violation then  -- = error code 23505   
-      raise unique_violation
-      using detail = 'Error updating VALID UNTIL.';
+    select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
+--     raise notice 'Invoking function: %', _invokingfunction;
+    _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=){1,100}''\\)[[:space:]]{0,};' , 'i');
+--     raise notice 'Matches: %', _matches;
+    if _matches IS NOT NULL then
+      EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
+      return 0;
+    else  -- also catches NULL
+      -- raise custom error
+      raise exception 'You''re not allowed to run this function directly'
+      using errcode = '22023'  -- 22023 = "invalid_parameter_value'
+          , detail = 'Please call dba.change_my_password function.'
+          , hint = 'Don''t mess with the devil';
+    end if;
 end
 $BODY$;
 
