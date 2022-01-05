@@ -2,6 +2,14 @@
 -- Schema creation
 create schema dba ;
 
+-- role creation
+create role dba with NOLOGIN NOINHERIT ;
+
+-- grants for dba
+grant select on pg_catalog.pg_authid to dba ;
+grant update (rolvaliduntil) on pg_catalog.pg_authid to dba ;
+
+
 -- password history table
 CREATE TABLE IF NOT EXISTS dba.pwdhistory
 (
@@ -12,12 +20,45 @@ CREATE TABLE IF NOT EXISTS dba.pwdhistory
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS dba.pwdhistory
-    OWNER to postgres;
+    OWNER to dba;
 
 
--- the function
-CREATE OR REPLACE FUNCTION dba.passchanger(_password text)
+
+-- ######################################
+-- ######################################
+
+-- real functions
+
+-- ######################################
+-- ######################################
+
+
+CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text)
     RETURNS integer
+    SECURITY DEFINER
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+begin
+   EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
+   return 0;
+exception
+   -- trap existing error and re-raise with added detail
+   when unique_violation then  -- = error code 23505   
+      raise unique_violation
+      using detail = 'Error updating VALID UNTIL.';
+end
+$BODY$;
+
+ALTER FUNCTION dba.change_valid_until(text)
+    OWNER TO dba;
+REVOKE EXECUTE ON FUNCTION dba.change_valid_until(text) From PUBLIC;
+
+
+CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
+    RETURNS integer
+    SECURITY INVOKER
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -36,19 +77,24 @@ begin
           , detail = 'Please check your password.'
           , hint = 'Password must be at least ' || _min_password_length || ' characters.';
    end if;
-   
+
    insert into dba.pwdhistory
           (usename, password, changed_on)
    values (_usename, md5(_password),now());
-   EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
---   update pg_catalog.pg_authid 
+   PERFORM dba.change_valid_until(_usename) ;
+--   EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
+--   update pg_catalog.pg_authid
 --         set rolvaliduntil='2021-12-30 00:00:00+01' where rolname='dodger' ;
    return 0;
-exception
+   exception
    -- trap existing error and re-raise with added detail
-   when unique_violation then  -- = error code 23505   
+   when unique_violation then  -- = error code 23505
       raise unique_violation
       using detail = 'Password already used earlier. Please try again with a different password.';
 end
 $BODY$;
+
+ALTER FUNCTION dba.change_my_password(text)
+    OWNER TO dba;
+REVOKE EXECUTE ON FUNCTION dba.change_my_password(text) From PUBLIC;
 

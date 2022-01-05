@@ -1,9 +1,10 @@
--- grant execution on the function
-grant execute on function dba.passchanger(_password text) to dodger;
+
+-- grant usage for schema dba
+grant usage on schema dba to dodger ;
+
+-- grant execute on the function that change_my_password the pass  but no on the one that change VALID UNTIL
+grant execute on function dba.change_my_password(text) to dodger;
 
 -- only insert is needed to allow audit trace
 GRANT INSERT ON TABLE dba.pwdhistory TO dodger;
 
--- the following permissions are necessary to change the 'VALID UNTIL' date
-grant select on pg_catalog.pg_authid to dodger ;
-grant update (rolvaliduntil) on pg_catalog.pg_authid to dodger ;
