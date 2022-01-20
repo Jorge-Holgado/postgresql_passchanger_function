@@ -25,5 +25,9 @@ Execute the grants on the cluster/database you have deployed `passchanger.sql`
 
 ### Changing password & extending expiration date
 
+The user should just execute:
+```
+select dba.change_my_password('YOUR_NEW_GENERATED_PASSWORD_NOT_THIS_ONE') ;
+```
 
 
