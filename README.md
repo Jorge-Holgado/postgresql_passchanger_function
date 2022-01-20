@@ -13,6 +13,7 @@ Deploy `passchanger.sql` on the desired cluster/database.
 It will:
   * create a `dba` schema
   * create a `dba` role
+  * create the `pwdhistory` table for audit purpouses
   * Grant the minimum permissions for this new role so the whole thing works
   * Create the 2 needed functions and grant permissions on them to `dba`
 
@@ -22,7 +23,7 @@ Take the file `grants_to_grant.sql` and modify the username _dodger_ so it match
 Execute the grants on the cluster/database you have deployed `passchanger.sql`
 
 
-### Changint password & extending expiration date
+### Changing password & extending expiration date
 
 
 
