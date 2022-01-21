@@ -15,6 +15,8 @@ grant pg_read_all_stats to dba ;
 CREATE TABLE IF NOT EXISTS dba.pwdhistory
 (
     usename character varying COLLATE pg_catalog."default",
+    usename_addres character varying COLLATE pg_catalog."default",
+    application_name character varying COLLATE pg_catalog."default",
     password character varying COLLATE pg_catalog."default",
     changed_on timestamp without time zone
 )
@@ -76,8 +78,12 @@ AS $BODY$
 declare
    _min_password_length int := 8;  -- specify min length here
    _usename text := '';
+   _useraddress text := '';
+   _userapp text := '';
 begin
    select user into _usename;
+   select client_addr user into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
+   select application_name user into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
    if length(_password) >= _min_password_length then
       EXECUTE format('ALTER USER %I WITH PASSWORD %L', _usename, _password);
    else  -- also catches NULL
@@ -93,8 +99,8 @@ begin
           , detail = 'Use a named user only.' ;
    else 
        insert into dba.pwdhistory
-              (usename, password, changed_on)
-       values (_usename, md5(_password),now());
+              (usename, usename_addres, application_name, password, changed_on)
+       values (_usename, _useraddress, _userapp, md5(_password),now());
        PERFORM dba.change_valid_until(_usename) ;
    end if;
 
