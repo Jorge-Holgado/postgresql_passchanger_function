@@ -56,7 +56,7 @@ begin
       raise exception 'You''re not allowed to run this function directly'
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
           , detail = 'Please call dba.change_my_password function.'
-          , hint = 'Don''t mess with the devil';
+          , hint = 'Invoked function: ' || _invokingfunction ;
     end if;
 end
 $BODY$;
