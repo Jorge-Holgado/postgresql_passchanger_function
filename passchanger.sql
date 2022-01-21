@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS dba.pwdhistory
 )
 TABLESPACE pg_default;
 
+-- alter if you come from a previous version of the table:
+-- alter table dba.pwdhistory add column usename_addres character varying ;
+-- alter table dba.pwdhistory add column application_name character varying ;
+
 ALTER TABLE IF EXISTS dba.pwdhistory
     OWNER to dba;
 
@@ -82,8 +86,8 @@ declare
    _userapp text := '';
 begin
    select user into _usename;
-   select client_addr user into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
-   select application_name user into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
+   select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
+   select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
    if length(_password) >= _min_password_length then
       EXECUTE format('ALTER USER %I WITH PASSWORD %L', _usename, _password);
    else  -- also catches NULL
