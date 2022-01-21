@@ -87,20 +87,18 @@ begin
           , detail = 'Please check your password.'
           , hint = 'Password must be at least ' || _min_password_length || ' characters.';
    end if;
+   if user = 'postgres' then
+      raise exception 'This function should not be run by user postgres'
+      using errcode = '22024'  -- 22023 = "invalid_parameter_value'
+          , detail = 'Use a named user only.' ;
+   else 
+       insert into dba.pwdhistory
+              (usename, password, changed_on)
+       values (_usename, md5(_password),now());
+       PERFORM dba.change_valid_until(_usename) ;
+   end if;
 
-   insert into dba.pwdhistory
-          (usename, password, changed_on)
-   values (_usename, md5(_password),now());
-   PERFORM dba.change_valid_until(_usename) ;
---   EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
---   update pg_catalog.pg_authid
---         set rolvaliduntil='2021-12-30 00:00:00+01' where rolname='dodger' ;
    return 0;
-   exception
-   -- trap existing error and re-raise with added detail
-   when unique_violation then  -- = error code 23505
-      raise unique_violation
-      using detail = 'Password already used earlier. Please try again with a different password.';
 end
 $BODY$;
 
