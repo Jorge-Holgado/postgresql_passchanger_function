@@ -52,7 +52,8 @@ declare
 begin
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
 --     raise notice 'Invoking function: %', _invokingfunction;
-    _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=){1,100}''\\)[[:space:]]{0,};' , 'i');
+    --_matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=){1,100}''\\)[[:space:]]{0,};' , 'i');
+    _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
 --     raise notice 'Matches: %', _matches;
     if _matches IS NOT NULL then
       EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
