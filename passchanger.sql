@@ -49,15 +49,29 @@ AS $BODY$
 declare
    _invokingfunction text := '';
    _matches text;
+   _password_lifetime int := 120;  -- specify password lifetime
+   _retval  INTEGER;
 begin
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
 --     raise notice 'Invoking function: %', _invokingfunction;
-    --_matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=){1,100}''\\)[[:space:]]{0,};' , 'i');
-    _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
+    --_matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
+    _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
 --     raise notice 'Matches: %', _matches;
     if _matches IS NOT NULL then
       EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
       return 0;
+        _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
+        if _matches IS NOT NULL then
+            --EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
+            EXECUTE format('ALTER ROLE ''%I'' WITH PASSWORD ''%L'' VALID UNTIL now() + interval ''%I days'' ;', _usename, _thepassword, _password_lifetime)
+            INTO _retval;
+            RETURN _retval;
+        else
+            raise exception 'Regular expresion for password check failed'
+            using errcode = '22023'  -- 22023 = "invalid_parameter_value'
+            , detail = 'Check your generated password an try again'
+            , hint = 'Read the official documentation' ;
+        end if;
     else  -- also catches NULL
       -- raise custom error
       raise exception 'You''re not allowed to run this function directly'
@@ -81,35 +95,39 @@ CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
     VOLATILE PARALLEL UNSAFE
 AS $BODY$
 declare
-   _min_password_length int := 8;  -- specify min length here
+   _min_password_length int := 12;  -- specify min length here
    _usename text := '';
    _useraddress text := '';
    _userapp text := '';
 begin
    select user into _usename;
-   select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
-   select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
-   if length(_password) >= _min_password_length then
-      EXECUTE format('ALTER USER %I WITH PASSWORD %L', _usename, _password);
-   else  -- also catches NULL
+   if user = 'postgres' then
+      raise exception 'This function should not be run by user postgres'
+      using errcode = '22024'  -- 22023 = "invalid_parameter_value'
+          , detail = 'Use a named user only.' ;
+   end if;
+
+   if length(_password) < _min_password_length then
+      -- also catches NULL
       -- raise custom error
       raise exception 'Password too short!'
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
           , detail = 'Please check your password.'
           , hint = 'Password must be at least ' || _min_password_length || ' characters.';
    end if;
-   if user = 'postgres' then
-      raise exception 'This function should not be run by user postgres'
-      using errcode = '22024'  -- 22023 = "invalid_parameter_value'
-          , detail = 'Use a named user only.' ;
-   else 
-       insert into dba.pwdhistory
-              (usename, usename_addres, application_name, password, changed_on)
-       values (_usename, _useraddress, _userapp, md5(_password),now());
-       PERFORM dba.change_valid_until(_usename) ;
-   end if;
 
-   return 0;
+   select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
+   select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
+
+    -- this will be executed by the username invoking this function
+    EXECUTE format('ALTER USER %I WITH PASSWORD %L', _usename, _password);
+
+    PERFORM dba.change_valid_until(_usename) ;
+    insert into dba.pwdhistory
+           (usename, usename_addres, application_name, password, changed_on)
+    values (_usename, _useraddress, _userapp, md5(_password),now());
+
+    return 0;
 end
 $BODY$;
 
