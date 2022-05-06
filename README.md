@@ -30,4 +30,16 @@ The user should just execute:
 select dba.change_my_password('YOUR_NEW_GENERATED_PASSWORD_NOT_THIS_ONE') ;
 ```
 
+## Helper script
 
+I've generated a helper script to make the process easier for users:
+```
+dodger@ciberterminal.net $ bash password_creator.sh 
+-- CHECK: password check
+-- <Wl}TxqRPBQaV_N<rU#A 
+-- /CHECK: password check
+
+-- ##############################################
+select dba.change_my_password('<Wl}TxqRPBQaV_N<rU#A') ;
+-- ##############################################
+```
