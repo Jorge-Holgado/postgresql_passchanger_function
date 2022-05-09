@@ -8,7 +8,6 @@ All without granting `super` permissions and having a histoc of changes on a _ps
 | :warning: WARNING          |
 |:---------------------------|
 | Amazon RDS has its own instructions on README_RDS.md |
-|:---------------------------|
 | :warning: WARNING          |
 
 ## Instructions
