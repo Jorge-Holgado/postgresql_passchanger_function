@@ -7,7 +7,7 @@ All without granting `super` permissions and having a histoc of changes on a _ps
 
 | :warning: WARNING          |
 |:---------------------------|
-| Amazon RDS has its own instructions on README_rds.md |
+| Amazon RDS has some notes at the end... |
 | :warning: WARNING          |
 
 ## Instructions
@@ -48,3 +48,14 @@ dodger@ciberterminal.net $ bash password_creator.sh
 select dba.change_my_password('<Wl}TxqRPBQaV_N<rU#A') ;
 -- ##############################################
 ```
+
+
+## RDS considerations
+
+As Amazon has modified Postgresql so you don't have access as a *real* superuser, the _dangerous_ function
+`change_valid_until` should run as the owner of the database (the user created when you deploy the database through AWS)
+
+There's a `passchanger_rds.sqlp` file which should be used instead of the normal one.
+
+
+
