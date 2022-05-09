@@ -14,10 +14,8 @@ As Amazon has modified Postgresql so you don't have access as a *real* superuser
 
 ## Instructions
 
-##
-
 ### First deploy
-Deploy `passchanger.sql` on the desired cluster/database.
+Deploy `passchanger_rds.sql` on the desired cluster/database.
 
 It will:
   * create a `dba` schema

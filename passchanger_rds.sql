@@ -11,7 +11,6 @@ GRANT rds_superuser TO dba ;
 -- grant select on pg_catalog.pg_authid to dba ;
 grant pg_read_all_stats to dba ;
 
-
 -- password history table
 CREATE TABLE IF NOT EXISTS dba.pwdhistory
 (
@@ -88,7 +87,7 @@ begin
 end
 $BODY$;
 
-ALTER FUNCTION dba.change_valid_until(text, text) OWNER TO dba;
+-- ALTER FUNCTION dba.change_valid_until(text, text) OWNER TO dba;
 REVOKE EXECUTE ON FUNCTION dba.change_valid_until(text, text) From PUBLIC;
 
 CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
