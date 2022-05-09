@@ -6,10 +6,10 @@ create schema dba ;
 create role dba with NOLOGIN NOINHERIT ;
 
 -- grants for dba
-GRANT rds_superuser TO dba ;
+-- GRANT rds_superuser TO dba ;
 
 -- grant select on pg_catalog.pg_authid to dba ;
-grant pg_read_all_stats to dba ;
+-- grant pg_read_all_stats to dba ;
 
 -- password history table
 CREATE TABLE IF NOT EXISTS dba.pwdhistory
