@@ -5,6 +5,12 @@
 This project tries to find a way to allow users the management of the `VALID UNTIL` expiration clause by themself.
 All without granting `super` permissions and having a histoc of changes on a _pseudo-audit_ table
 
+| :warning: WARNING          |
+|:---------------------------|
+| Amazon RDS has its own instructions on README_RDS.md |
+|:---------------------------|
+| :warning: WARNING          |
+
 ## Instructions
 
 ### First deploy

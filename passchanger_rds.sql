@@ -50,25 +50,25 @@ CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text, _thepassword te
     VOLATILE PARALLEL UNSAFE
 AS $BODY$
 declare
-   _invokingfunction text := '';
-   _matches text;
-   _password_lifetime int := 120;  -- specify password lifetime
-   _retval  INTEGER;
-   _expiration_date text;
+    _invokingfunction text := '';
+    _matches text;
+    --_password_lifetime text := '120 days';  -- specify password lifetime
+    _retval  INTEGER;
+    _expiration_date text;
 begin
     select now() + interval '120 days' into _expiration_date ;
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
---     raise notice 'Invoking function: %', _invokingfunction;
-    --_matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
+    -- first, checking the invoking function
     _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
 --     raise notice 'Matches: %', _matches;
     if _matches IS NOT NULL then
---        _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
-        _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
+        -- then checking the regex for the password
+        _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\([[:space:]]{0,}''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''[[:space:]]{0,}\\)[[:space:]]{0,};' , 'i');
+        -- catch-all regexp, avoid using it
+        -- _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
         if _matches IS NOT NULL then
-            --EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
-            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL ''%I'' ;', _usename, _thepassword, _expiration_date);
-            --EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL now() + interval ''120 days'' ;', _usename, _thepassword);
+            --EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL now() + interval %L days ;', _usename, _thepassword, _password_lifetime);
+            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL %L ;', _usename, _thepassword, _expiration_date);
             -- INTO _retval;
             RETURN 0;
         else
@@ -77,7 +77,8 @@ begin
             , detail = 'Check your generated password (' || _thepassword || ') an try again'
             , hint = 'Read the official documentation' ;
         end if;
-    else  -- also catches NULL
+    else  
+      -- also catches NULL
       -- raise custom error
       raise exception 'You''re not allowed to run this function directly'
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
@@ -87,10 +88,8 @@ begin
 end
 $BODY$;
 
--- ALTER FUNCTION dba.change_valid_until(text, text) OWNER TO postgres;
 ALTER FUNCTION dba.change_valid_until(text, text) OWNER TO dba;
 REVOKE EXECUTE ON FUNCTION dba.change_valid_until(text, text) From PUBLIC;
-
 
 CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
     RETURNS integer
@@ -100,38 +99,34 @@ CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
     VOLATILE PARALLEL UNSAFE
 AS $BODY$
 declare
-   _min_password_length int := 12;  -- specify min length here
-   _usename text := '';
-   _useraddress text := '';
-   _userapp text := '';
+    _min_password_length int := 12;  -- specify min length here
+    _usename text := '';
+    _useraddress text := '';
+    _userapp text := '';
 begin
-   select user into _usename;
-   if user = 'postgres' then
-      raise exception 'This function should not be run by user postgres'
-      using errcode = '22024'  -- 22023 = "invalid_parameter_value'
+    select user into _usename;
+    if user = 'postgres' then
+        raise exception 'This function should not be run by user postgres'
+        using errcode = '22024'  -- 22023 = "invalid_parameter_value'
           , detail = 'Use a named user only.' ;
-   end if;
+    end if;
 
-   if length(_password) < _min_password_length then
+    if length(_password) < _min_password_length then
       -- also catches NULL
       -- raise custom error
       raise exception 'Password too short!'
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
           , detail = 'Please check your password.'
           , hint = 'Password must be at least ' || _min_password_length || ' characters.';
-   end if;
+    end if;
 
-   select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
-   select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
+    select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
+    select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
 
-   PERFORM dba.change_valid_until(_usename, _password) ;
-   insert into dba.pwdhistory
+    PERFORM dba.change_valid_until(_usename, _password) ;
+    insert into dba.pwdhistory
           (usename, usename_addres, application_name, password, changed_on)
-   values (_usename, _useraddress, _userapp, md5(_password),now());
-
---
---
---
+    values (_usename, _useraddress, _userapp, md5(_password),now());
 
     return 0;
 end

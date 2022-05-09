@@ -49,30 +49,35 @@ AS $BODY$
 declare
    _invokingfunction text := '';
    _matches text;
-   _password_lifetime int := 120;  -- specify password lifetime
+    --_password_lifetime text := '120 days';  -- specify password lifetime
    _retval  INTEGER;
+    _expiration_date text;
 begin
+    select now() + interval '120 days' into _expiration_date ;
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
+    -- first, checking the invoking function
 --     raise notice 'Invoking function: %', _invokingfunction;
     --_matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
     _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
 --     raise notice 'Matches: %', _matches;
     if _matches IS NOT NULL then
+        -- then checking the regex for the password
       EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
       return 0;
         _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''\\)[[:space:]]{0,};' , 'i');
         if _matches IS NOT NULL then
             --EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
-            EXECUTE format('ALTER ROLE ''%I'' WITH PASSWORD ''%L'' VALID UNTIL now() + interval ''%I days'' ;', _usename, _thepassword, _password_lifetime)
-            INTO _retval;
-            RETURN _retval;
+            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL now() + interval ''%I days'' ;', _usename, _thepassword, _password_lifetime);
+            -- INTO _retval;
+            RETURN 0;
         else
             raise exception 'Regular expresion for password check failed'
             using errcode = '22023'  -- 22023 = "invalid_parameter_value'
             , detail = 'Check your generated password an try again'
             , hint = 'Read the official documentation' ;
         end if;
-    else  -- also catches NULL
+    else  
+      -- also catches NULL
       -- raise custom error
       raise exception 'You''re not allowed to run this function directly'
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
@@ -82,10 +87,8 @@ begin
 end
 $BODY$;
 
-ALTER FUNCTION dba.change_valid_until(text)
-    OWNER TO dba;
+ALTER FUNCTION dba.change_valid_until(text) OWNER TO dba;
 REVOKE EXECUTE ON FUNCTION dba.change_valid_until(text) From PUBLIC;
-
 
 CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
     RETURNS integer
@@ -131,7 +134,6 @@ begin
 end
 $BODY$;
 
-ALTER FUNCTION dba.change_my_password(text)
-    OWNER TO dba;
+ALTER FUNCTION dba.change_my_password(text) OWNER TO dba;
 REVOKE EXECUTE ON FUNCTION dba.change_my_password(text) From PUBLIC;
 
