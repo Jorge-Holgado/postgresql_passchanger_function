@@ -52,11 +52,13 @@ declare
     _invokingfunction text := '';
     _matches text;
     _password_lifetime integer := 120 ;  -- specify password lifetime in days
-    _retval  INTEGER;
-    _expiration_date numeric ;
+    _retval  integer;
+    _expiration_epoch numeric ;
+    _expiration_date timestamp ;
 begin
-    select extract(epoch from localtimestamp) into _expiration_date;
-    select _expiration_date+(_password_lifetime*24*60*60) into _expiration_date;
+    select extract(epoch from localtimestamp) into _expiration_epoch;
+    select _expiration_epoch+(_password_lifetime*24*60*60) into _expiration_epoch;
+    select to_timestamp(_expiration_epoch) into _expiration_date ;
 
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
     -- first, checking the invoking function
@@ -65,7 +67,8 @@ begin
         -- then checking the regex for the password
         _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\([[:space:]]{0,}''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''[[:space:]]{0,}\\)[[:space:]]{0,};' , 'i');
         if _matches IS NOT NULL then
-            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL to_timestamp(%L) ;', _usename, _thepassword, _expiration_date);
+--            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL to_timestamp(%L) ;', _usename, _thepassword, _expiration_date);
+            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL %L ;', _usename, _thepassword, _expiration_date);
             -- INTO _retval;
             RETURN 0;
         else
@@ -90,6 +93,9 @@ $BODY$;
 -- ALTER FUNCTION dba.change_valid_until(text, text) OWNER TO dba;
 REVOKE EXECUTE ON FUNCTION dba.change_valid_until(text, text) From PUBLIC;
 
+
+drop function if exists dba.change_my_password ;
+
 CREATE OR REPLACE FUNCTION dba.change_my_password(_password text)
     RETURNS integer
     SECURITY INVOKER
@@ -109,6 +115,7 @@ begin
         raise exception 'This function should not be run by user postgres'
         using errcode = '22024'  -- 22023 = "invalid_parameter_value'
           , detail = 'Use a named user only.' ;
+      return 1;
     end if;
 
     if length(_password) < _min_password_length then
@@ -118,15 +125,27 @@ begin
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
           , detail = 'Please check your password.'
           , hint = 'Password must be at least ' || _min_password_length || ' characters.';
+      return 1;
     end if;
 
     select client_addr into _useraddress from pg_stat_activity where pid = pg_backend_pid() ;
     select application_name into _userapp from pg_stat_activity where pid = pg_backend_pid() ;
 
-    PERFORM dba.change_valid_until(_usename, _password) ;
-    insert into dba.pwdhistory
-          (usename, usename_addres, application_name, password, changed_on)
-    values (_usename, _useraddress, _userapp, md5(_password),now());
+    --PERFORM dba.change_valid_until(_usename, _password) ;
+    SELECT dba.change_valid_until(_usename, _password)
+        INTO _retval;
+    if _retval = 0 then
+        insert into dba.pwdhistory
+               (usename, usename_addres, application_name, password, changed_on)
+        values (_usename, _useraddress, _userapp, md5(_password),now());
+
+        raise notice 'Password changed' ;
+    else
+        raise exception 'Could not change expiration date, please check'
+        using errcode = '22023'  -- 22023 = "invalid_parameter_value'
+            , detail = 'contact the dba' ;
+        return 1;
+    end if;
 
     return 0;
 end
