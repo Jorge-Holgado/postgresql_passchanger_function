@@ -51,23 +51,21 @@ AS $BODY$
 declare
     _invokingfunction text := '';
     _matches text;
-    --_password_lifetime text := '120 days';  -- specify password lifetime
+    _password_lifetime integer := 120 ;  -- specify password lifetime in days
     _retval  INTEGER;
-    _expiration_date text;
+    _expiration_date numeric ;
 begin
-    select now() + interval '120 days' into _expiration_date ;
+    select extract(epoch from localtimestamp) into _expiration_date;
+    select _expiration_date+(_password_lifetime*24*60*60) into _expiration_date;
+
     select query into _invokingfunction from pg_stat_activity where pid = pg_backend_pid() ;
     -- first, checking the invoking function
     _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
---     raise notice 'Matches: %', _matches;
     if _matches IS NOT NULL then
         -- then checking the regex for the password
         _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\([[:space:]]{0,}''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''[[:space:]]{0,}\\)[[:space:]]{0,};' , 'i');
-        -- catch-all regexp, avoid using it
-        -- _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\(.*\\)[[:space:]]{0,};' , 'i');
         if _matches IS NOT NULL then
-            --EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL now() + interval %L days ;', _usename, _thepassword, _password_lifetime);
-            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL %L ;', _usename, _thepassword, _expiration_date);
+            EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL to_timestamp(%L) ;', _usename, _thepassword, _expiration_date);
             -- INTO _retval;
             RETURN 0;
         else
@@ -75,6 +73,7 @@ begin
             using errcode = '22023'  -- 22023 = "invalid_parameter_value'
             , detail = 'Check your generated password (' || _thepassword || ') an try again'
             , hint = 'Read the official documentation' ;
+            RETURN 1;
         end if;
     else  
       -- also catches NULL
@@ -83,6 +82,7 @@ begin
       using errcode = '22023'  -- 22023 = "invalid_parameter_value'
           , detail = 'Please call dba.change_my_password function.'
           , hint = 'Invoked function: ' || _invokingfunction ;
+      RETURN 1;
     end if;
 end
 $BODY$;
@@ -102,6 +102,7 @@ declare
     _usename text := '';
     _useraddress text := '';
     _userapp text := '';
+    _retval integer ;
 begin
     select user into _usename;
     if user = 'postgres' then

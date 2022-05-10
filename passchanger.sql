@@ -39,6 +39,8 @@ ALTER TABLE IF EXISTS dba.pwdhistory
 -- ######################################
 -- ######################################
 
+drop function if exists dba.change_valid_until ;
+
 CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text)
     RETURNS integer
     SECURITY DEFINER
@@ -63,10 +65,7 @@ begin
       -- then checking the regex for the password
         _matches := regexp_matches(_invokingfunction, E'select dba\.change_my_password\\([[:space:]]{0,}''([[:alnum:]]|@|\\$|#|%|\\^|&|\\*|\\(|\\)|\\_|\\+|\\{|\\}|\\||<|>|\\?|=|!){11,100}''[[:space:]]{0,}\\)[[:space:]]{0,};' , 'i');
         if _matches IS NOT NULL then
-            --EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=now() + interval ''120 days'' where rolname=''%I'' ', _usename);
             EXECUTE format('update pg_catalog.pg_authid set rolvaliduntil=to_timestamp(%L) where rolname=%L ', _expiration_date, _usename);
-            -- EXECUTE format('ALTER ROLE %I WITH PASSWORD %L VALID UNTIL now() + interval ''%I days'' ;', _usename, _thepassword, _password_lifetime);
-            -- EXECUTE format('ALTER ROLE %I WITH PASSWORD %L ;', _usename, _thepassword, _password_lifetime);
             -- INTO _retval;
             RETURN 0;
         else
