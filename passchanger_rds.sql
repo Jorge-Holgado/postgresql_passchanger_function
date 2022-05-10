@@ -39,7 +39,7 @@ ALTER TABLE IF EXISTS dba.pwdhistory
 -- ######################################
 -- ######################################
 
-drop function dba.change_valid_until ;
+drop function if exists dba.change_valid_until ;
 
 CREATE OR REPLACE FUNCTION dba.change_valid_until(_usename text, _thepassword text)
     RETURNS integer
