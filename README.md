@@ -78,8 +78,15 @@ There's a `passchanger_rds.sql` file which should be used instead of the normal 
 
 For updates you should change the owner of the `change_valid_until` to the database _owner_:
 ```
-ALTER FUNCTION dba.change_my_password(text) OWNER TO _DATABASEOWNER;
+ALTER FUNCTION dba.change_valid_until(text) OWNER TO _DATABASEOWNER;
 ```
 Modify `_DATABASEOWNER` according your admin username...
+
+
+## Security considerations
+
+  * Non-RDS `change_valid_until` function does not uses `ALTER USER` to modify `VALID UNTIL`, it makes an `update pg_catalog.pg_authid set rolvaliduntil` instead, so the `dba` user has only grant over that table/column instead of granting additional permissions to him.
+  * RDS `change_valid_until` should run as the database owner, is the only way to make this work as you can't access `pg_catalog.pg_authid` on rds, it uses `ALTER USER ... VALID UNTIL` instead.
+
 
 
