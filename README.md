@@ -4,11 +4,11 @@
 ## Table of Contents
 
 1. [TOC](README.md#postgresql-expiration-date-management-functions)
-	1. [Description](#description)
-	2. [Instructions](#instructions)
-	3. [Helper script](#helper_script)
-	4. [RDS considerations](#rds_considerations)
-	5. [Security considerations](#security_considerations)
+	1. [Description](README.md#description)
+	2. [Instructions](README.md#instructions)
+	3. [Helper script](README.md#helper_script)
+	4. [RDS considerations](README.md#rds_considerations)
+	5. [Security considerations](README.md#security_considerations)
 
 ## Description
 
