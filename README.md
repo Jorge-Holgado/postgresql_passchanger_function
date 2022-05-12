@@ -3,7 +3,7 @@
 
 ## Table of Contents
 
-1. [TOC](#postgresql-expiration-date-management-functions)
+1. [TOC](README.md#postgresql-expiration-date-management-functions)
 	1. [Description](#description)
 	2. [Instructions](#instructions)
 	3. [Helper script](#helper_script)
