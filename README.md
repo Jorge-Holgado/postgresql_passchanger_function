@@ -3,7 +3,10 @@
 ## Description
 
 This project tries to find a way to allow users the management of the `VALID UNTIL` expiration clause by themself.
-All without granting `super` permissions and having a histoc of changes on a _pseudo-audit_ table
+Everyghin without granting `super` permissions and having a histoc of changes on a _pseudo-audit_ table.
+
+You can easly combine this functions with the [passwordcheck extra](https://github.com/michaelpq/pg_plugins/tree/main/passwordcheck_extra) extension, the regex inside `dba.change_valid_until` match the _default_ requirements in the extension for special characters and you can change the variable `_min_password_length` to match your requirements (in the case you changed it, of course).
+
 
 | :warning: WARNING          |
 |:---------------------------|
