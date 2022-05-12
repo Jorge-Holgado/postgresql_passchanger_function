@@ -1,4 +1,14 @@
+
 # PostgreSQL expiration date management functions
+
+## Table of Contents
+
+1. [README](/README)
+	1. [Description](README/#description)
+	2. [Instructions](README/#instructions)
+	3. [Helper script](README/#helper_script)
+	4. [RDS considerations](README/#rds_considerations)
+	5. [Security considerations](README/#security_considerations)
 
 ## Description
 
