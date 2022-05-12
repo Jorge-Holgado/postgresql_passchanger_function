@@ -6,9 +6,9 @@
 1. [TOC](README.md#postgresql-expiration-date-management-functions)
 	1. [Description](README.md#description)
 	2. [Instructions](README.md#instructions)
-	3. [Helper script](README.md#helper_script)
-	4. [RDS considerations](README.md#rds_considerations)
-	5. [Security considerations](README.md#security_considerations)
+	3. [Helper script](README.md#helper-script)
+	4. [RDS considerations](README.md#rds-considerations)
+	5. [Security considerations](README.md#security-considerations)
 
 ## Description
 
